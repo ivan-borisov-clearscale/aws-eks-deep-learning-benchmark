@@ -211,6 +211,9 @@ metadata:
   name: fsx-csi-controller
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      app: fsx-csi-controller
   serviceName: fsx-csi-controller
   replicas: 1
   template:
