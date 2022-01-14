@@ -45,7 +45,6 @@ def install_kubeflow(api_client, app_dir, namespace):
   util.run(cmd.split(), cwd=app_dir)
 
   apply_command = ["ks", "apply", "default", "-c", "argo", "-c", "tf-job-operator",  "-c", "mpi-operator"]
-
   util.run(apply_command, cwd=app_dir)
 
 def wait_for_kubeflow_install(api_client, namespace):
@@ -53,17 +52,17 @@ def wait_for_kubeflow_install(api_client, namespace):
   # Verify that the Argo operator is deployed.
   argo_deployment_name = "workflow-controller"
   logging.info("Verifying Argo controller started.")
-  util.wait_for_deployment(api_client, namespace, argo_deployment_name)
+  util.wait_for_deployment(api_client, namespace, argo_deployment_name, timeout_minutes=5)
 
   # Verify that the TfJob Operator is actually deployed.
   tf_job_deployment_name = "tf-job-operator"
   logging.info("Verifying TfJob controller started.")
-  util.wait_for_deployment(api_client, namespace, tf_job_deployment_name)
+  util.wait_for_deployment(api_client, namespace, tf_job_deployment_name, timeout_minutes=5)
 
   # Verify that the MPI Operator is deployed.
   mpi_job_deployment_name = "mpi-operator"
   logging.info("Verifying MPIJob controller started.")
-  util.wait_for_deployment(api_client, namespace, mpi_job_deployment_name)
+  util.wait_for_deployment(api_client, namespace, mpi_job_deployment_name, timeout_minutes=5)
 
 def install_kubebench_nfs(api_client, app_dir, namespace):
   """Deploy required kubeflow packages to run benchmark"""
