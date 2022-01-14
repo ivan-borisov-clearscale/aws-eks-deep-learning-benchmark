@@ -77,7 +77,8 @@ def setup_ks_app(base_app_dir, namespace, api_client, kubeflow_registry, kubeben
   app_dir = os.path.join(base_app_dir, app_name)
 
   # Initialize a ksonnet app.
-  util.run(["ks", "init", app_name], cwd=base_app_dir)
+  # --api-spec=version:v1.8.0 is to prevent ERROR No Major.Minor.Patch elements found
+  util.run(["ks", "init", app_name, "--api-spec=version:v1.8.0"], cwd=base_app_dir)
 
   # Set the default namespace.
   util.run(["ks", "env", "set", "default", "--namespace=" + namespace_name], cwd=app_dir)
@@ -91,8 +92,8 @@ def setup_ks_app(base_app_dir, namespace, api_client, kubeflow_registry, kubeben
     util.run(["ks", "registry", "add", r, registries[r]], cwd=app_dir)
 
   # Install required packages
-  packages = ["kubeflow/common", "kubeflow/argo", "kubeflow/tf-training",
-              "kubeflow/kubebench", "kubeflow/mpi-job"]
+  packages = ["kubeflow/common@v0.7-branch", "kubeflow/argo@v0.7-branch", "kubeflow/tf-training@v0.7-branch",
+              "kubeflow/kubebench@v0.7-branch", "kubeflow/mpi-job@v0.7-branch"]
   for p in packages:
     util.run(["ks", "pkg", "install", p], cwd=app_dir)
 

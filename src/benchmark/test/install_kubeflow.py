@@ -17,9 +17,8 @@ def parse_args():
   parser.add_argument("--namespace", default='default', type=str, help=("The namespace to use."))
   parser.add_argument("--base_dir", default=None, type=str, help=("The source directory of all repositories."))
   parser.add_argument("--github_secret_name", default="github-token", type=str, help=("The github token to be created."))
-  # TODO: update to upstream path once PR merged https://github.com/kubeflow/kubeflow/pull/3062
-  parser.add_argument("--kubeflow_registry", default="github.com/jeffwan/kubeflow/tree/master/kubeflow", type=str, help=("The github token to be created."))
-  parser.add_argument("--kubebench_registry", default="github.com/kubeflow/kubebench/tree/master/kubebench", type=str, help=("The github token to be created."))
+  parser.add_argument("--kubeflow_registry", default="https://github.com/ivan-borisov-clearscale/kubeflow/tree/v0.7-branch/kubeflow", type=str, help=("The github token to be created."))
+  parser.add_argument("--kubebench_registry", default="https://github.com/ivan-borisov-clearscale/kubebench/tree/master/kubebench", type=str, help=("The github token to be created."))
 
   args, _ = parser.parse_known_args()
   return args
@@ -40,8 +39,9 @@ def install_kubeflow(api_client, app_dir, namespace):
     cmd = "ks param set argo namespace " + namespace
     util.run(cmd.split(), cwd=app_dir)
 
-  #TODO: confirm upstream update to latest.
-  cmd = "ks param set mpi-operator image mpioperator/mpi-operator:latest"
+  cmd = "ks param set mpi-operator image mpioperator/mpi-operator:0.2.2"
+  util.run(cmd.split(), cwd=app_dir)
+  cmd = "ks param set mpi-operator kubectlDeliveryImage mpioperator/kubectl-delivery:0.2.2"
   util.run(cmd.split(), cwd=app_dir)
 
   apply_command = ["ks", "apply", "default", "-c", "argo", "-c", "tf-job-operator",  "-c", "mpi-operator"]
