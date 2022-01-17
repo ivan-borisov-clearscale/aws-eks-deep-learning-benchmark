@@ -19,7 +19,7 @@ def parse_args():
   parser.add_argument("--aws_secret", default='aws-secret', type=str, help=("The aws secret authenticate s3"))
   parser.add_argument("--aws_access_key_id", default='AWS_ACCESS_KEY_ID', type=str, help=("AWS access key id."))
   parser.add_argument("--aws_secret_access_key", default='AWS_SECRET_ACCESS_KEY', type=str, help=("AWS secret access key."))
-  parser.add_argument("--aws_region", default='us-west-2', type=str, help=("The aws region to use."))
+  parser.add_argument("--aws_region", default='us-east-1', type=str, help=("The aws region to use."))
   parser.add_argument("--data_pvc", default='null', type=str, help=("The dataset persistent volume claim to mount to training job"))
 
   args, _ = parser.parse_known_args()
