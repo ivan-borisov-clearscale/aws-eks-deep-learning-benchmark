@@ -39,9 +39,9 @@ def install_kubeflow(api_client, app_dir, namespace):
     cmd = "ks param set argo namespace " + namespace
     util.run(cmd.split(), cwd=app_dir)
 
-  cmd = "ks param set mpi-operator image mpioperator/mpi-operator:0.2.2"
+  cmd = "ks param set mpi-operator image mpioperator/mpi-operator:0.2.0"
   util.run(cmd.split(), cwd=app_dir)
-  cmd = "ks param set mpi-operator kubectlDeliveryImage mpioperator/kubectl-delivery:0.2.2"
+  cmd = "ks param set mpi-operator kubectlDeliveryImage mpioperator/kubectl-delivery:0.2.0"
   util.run(cmd.split(), cwd=app_dir)
 
   apply_command = ["ks", "apply", "default", "-c", "argo", "-c", "tf-job-operator",  "-c", "mpi-operator"]
