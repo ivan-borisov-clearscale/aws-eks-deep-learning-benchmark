@@ -29,7 +29,7 @@ spec:
     role: benchmark-nfs
   type: ClusterIP
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -37,8 +37,12 @@ metadata:
   name: benchmark-nfs-deploy
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      name: benchmark-nfs
   template:
     metadata:
+      name: benchmark-nfs
       labels:
         role: benchmark-nfs
     spec:
