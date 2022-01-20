@@ -1,0 +1,26 @@
+FROM python:3.7.2-alpine
+
+# pip freeze from seedjeffwan/mpi-post-processor:logs
+# cachetools==3.1.0
+# certifi==2019.3.9
+# chardet==3.0.4
+# google-auth==1.6.3
+# idna==2.8
+# kubernetes==9.0.0
+# oauthlib==3.0.1
+# pyasn1==0.4.5
+# pyasn1-modules==0.2.4
+# python-dateutil==2.8.0
+# PyYAML==5.1
+# requests==2.21.0
+# requests-oauthlib==1.2.0
+# rsa==4.0
+# six==1.12.0
+# urllib3==1.24.1
+# websocket-client==0.56.0
+
+RUN pip install kubernetes==9.0.0
+
+COPY post_processor.py Dockerfile /opt/
+
+ENTRYPOINT ["python" "/opt/post_processor.py"]
