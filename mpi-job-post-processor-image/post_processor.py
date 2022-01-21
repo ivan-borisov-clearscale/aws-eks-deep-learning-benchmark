@@ -12,7 +12,7 @@
 from __future__ import print_function
 import json
 import os
-from kubernetes import client, config
+from kubernetes import client, config, watch
 import yaml
 
 def load_yaml_dict(file_name):
@@ -41,10 +41,21 @@ def dump_logs(namespace, job_name, output_dir):
   launcher_pod_name = pods.items[0].metadata.name
   #api_response = apiV1.read_namespaced_pod_log(launcher_pod_name, namespace, pretty='true', follow=True)
 
+  w = watch.Watch()
+  core_v1 = client.CoreV1Api()
+  print('waiting for MPI launcher pod to started')
+  for event in w.stream(apiV1.list_namespaced_pod,
+                        namespace=namespace,
+                        label_selector=label_selector):
+    if event["object"].status.phase == "Running":
+        w.stop()
+        print('MPI launcher pod has started')
+        break
+
   log_file = os.path.join(output_dir, launcher_pod_name)
   with open(log_file, 'w') as file_out:
-    w = Watch()
-    for e in w.stream(apiV1.read_namespaced_pod_log, name=launcher_pod_name, namespace=namespace, pretty='true', timeout_seconds=300):
+    w = watch.Watch()
+    for e in w.stream(apiV1.read_namespaced_pod_log, name=launcher_pod_name, namespace=namespace):
       print(e)
       print(e, file=file_out)
 
