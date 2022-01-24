@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y python-pip python-dev
 
 # Install eksctl
 ENV HOME=/root
-RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/latest_release/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp && \
+RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.77.0/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp && \
     mv /tmp/eksctl /usr/local/bin
 
 # Install aws-iam-authenticator
