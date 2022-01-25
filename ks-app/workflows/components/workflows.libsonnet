@@ -15,13 +15,13 @@
     // Name of the key in the k8s secret containing AWS_SECRET_ACCESS_KEY.
     awsSecretSecretaccesskeyKeyName: "AWS_SECRET_ACCESS_KEY",
     // S3 region
-    awsRegion: "us-west-2",
+    awsRegion: "us-east-1",
     // true Whether or not to use https for S3 connections
     s3UseHttps: "true",
     // Whether or not to verify https certificates for S3 connections
     s3VerifySsl: "true",
     // URL for your s3-compatible endpoint.
-    s3Endpoint: "s3.us-west-1.amazonaws.com",
+    s3Endpoint: "s3.us-east-1.amazonaws.com",
   },
 
 
@@ -201,10 +201,10 @@
                 },
               ],
               [
-                {
-                  name: "install-gpu-driver",
-                  template: "install-gpu-driver",
-                },
+                //{
+                //  name: "install-gpu-driver",
+                //  template: "install-gpu-driver",
+                //},
                 {
                   name: "install-kubeflow",
                   template: "install-kubeflow",
@@ -273,23 +273,20 @@
           ),  // checkout
 
           $.new(_env, _params).buildTemplate("create-cluster", [
-            "python",
-            "-m",
-            "benchmark.test.create_cluster",
-            "--region=" + params.region,
-            "--cluster_name=" + params.name,
-            "--cluster_config=" + params.clusterConfig,
+            "/bin/bash",
+            "-c",
+            "curl --silent --location https://github.com/weaveworks/eksctl/releases/download/v0.77.0/eksctl_Linux_amd64.tar.gz | tar xz -C /tmp && mv /tmp/eksctl /usr/local/bin && python -m benchmark.test.create_cluster --region=" + params.region + "--cluster_name=" + params.name + "--cluster_config=" + params.clusterConfig,
           ], envVars=aws_credential_env
           ),  // create cluster
 
-          $.new(_env, _params).buildTemplate("install-gpu-driver", [
-            "python",
-            "-m",
-            "benchmark.test.install_gpu_driver",
-            "--base_dir=" + benchmarkDir,
-            "--namespace=" + params.namespace,
-          ], envVars=github_token_env + aws_credential_env
-          ),  // install gpu driver
+          //$.new(_env, _params).buildTemplate("install-gpu-driver", [
+          //  "python",
+          //  "-m",
+          //  "benchmark.test.install_gpu_driver",
+          //  "--base_dir=" + benchmarkDir,
+          //  "--namespace=" + params.namespace,
+          //], envVars=github_token_env + aws_credential_env
+          //),  // install gpu driver
 
           $.new(_env, _params).buildTemplate("install-kubeflow", [
             "python",
