@@ -1,0 +1,214 @@
+PoC aws-eks-deep-learning-benchmark
+
+Prerequisites
+    awscli
+    kubectl
+    eksctl (https://github.com/weaveworks/eksctl)
+    ksonnet (https://github.com/ksonnet/ksonnet)
+    aws-iam-authenticator (required by eksctl, https://docs.aws.amazon.com/eks/latest/userguide/install-aws-iam-authenticator.html)
+
+
+Create a Github token
+Go to Settings -> Developer Settings -> Personal access tokens -> create token
+
+Setup a "bootstrap" EKS cluster - it will be used to run store AWS credentials and Github token and run the Argo workflow which will setup the training EKS cluster and run benchmark
+
+eksctl create cluster --name=poc-embark-eks-dl-bench-bootstrap --spot --nodes=2 --node-type=c5.large --ssh-access --region=us-east-1 --zones=us-east-1a,us-east-1b --ssh-public-key ~/.ssh/id_rsa.pub_clearscale --tags "Project=Embark,Owner=ivan.borisov,Company=Embark"
+
+Run "kubectl get nodes" to check if you can connect to the EKS cluster.
+
+Setup NFS
+
+Edit deploy/benchmark-nfs-svc.yaml file:
+
+Need to change line 32 to
+apiVersion: apps/v1
+Reference: https://stackoverflow.com/questions/58481850/no-matches-for-kind-deployment-in-version-extensions-v1beta1
+
+Add to the Deployment spec block (line 39):
+selector:
+  matchLabels:
+    name: benchmark-nfs
+Reference: https://stackoverflow.com/questions/59480373/validationerror-missing-required-field-selector-in-io-k8s-api-v1-deploymentsp
+
+kubectl create -f deploy/benchmark-nfs-svc.yaml
+
+
+Create NFS persistence volume:
+kubectl get svc benchmark-nfs-svc -o=jsonpath={.spec.clusterIP}
+Replace IP in the deploy/benchmark-nfs-volume.yaml (line 16):
+kubectl create -f deploy/benchmark-nfs-volume.yaml
+
+Install Argo workflow
+
+kubectl create ns argo
+
+Download https://raw.githubusercontent.com/argoproj/argo/v2.2.1/manifests/install.yaml and change:
+apiextensions.k8s.io/v1beta1 -> apiextensions.k8s.io/v1
+apps/v1beta2 -> apps/v1
+(line 14) change "version: v1alpha1" to 
+versions:
+  - name: v1alpha1
+    storage: true
+    served: true
+
+kubectl apply -n argo -f argo_install.yaml
+
+You could port-forward Argo UI port to the localhost
+
+kubectl port-forward deployment/argo-ui 8001:8001 -n argo
+
+Setup AWS Credentials
+Replace YOUR_AWS_ACCESS_KEY_ID and YOUR_AWS_SECRET_ACCESS_KEY with base64 of your AWS credentials (echo -n 'value' | base64) in the deploy/aws-secret.yaml file.
+kubectl apply -f deploy/aws-secret.yaml
+
+Setup Github Token
+Replace YOUR_GITHUB_TOKEN with base64 of your GitHub token (echo -n 'your-token' | base64) in the deploy/github-token.yaml file.
+kubectl apply -f deploy/github-token.yaml
+
+Setup S3 bucket
+aws s3api create-bucket --bucket poc-embark-dl-benchmark --region us-east-1
+
+Edit training cluster configuration in the config/cluster_config.yaml file (choose a name, k8s version, type and number of instances, region and AZs) and upload it to S3:
+aws s3 cp config/cluster_config.yaml s3://poc-embark-dl-benchmark/config/
+
+Copy benchmark job to S3:
+aws s3 cp config/mpi_job/mpi-job-resnet50-aws-synthetic.yaml s3://poc-embark-dl-benchmark/config/benchmark/mpi-resnet50synth.yaml
+
+Update parameters in the ks-app/workflows/params.libsonnet file:
+s3ResultPath
+s3DatasetPath
+clusterConfig
+trainingJobConfig
+region
+
+Generate the Argo workflow from the template:
+cd ks-app/workflows/
+ks show default -c workflows > workflow.yaml
+
+here 'default' is the environment name under the environments/ directory
+
+Run the Argo workflow
+kubectl apply -f workflow.yaml
+
+
+
+Operations
+Generate config for kubectl:
+aws eks update-kubeconfig --region us-east-1 --name 'poc-embark-dl-benchmark'
+
+Switch kubectl context back to the bootstrapping EKS cluster:
+kubectl config use-context ivan.borisov@poc-embark-eks-dl-bench-bootstrap.us-east-1.eksctl.io
+
+Delete workflow:
+kubectl delete workflow poc-embark-dl-benchmark
+
+Delete training EKS cluster manually (e.g. when it was provisioned but Argo workflow has failed after that):
+eksctl delete cluster --config-file=config/cluster_config.yaml
+
+Run a temporary debugging pod:
+kubectl run -i --tty tmp --overrides='
+{
+  "apiVersion": "v1",
+      "spec": {
+        "containers": [
+          {
+            "name": "tmp",
+            "image": "seedjeffwan/benchmark-runner:20190424",
+            "args": [
+              "bash"
+            ],
+            "stdin": true,
+            "stdinOnce": true,
+            "tty": true,
+            "volumeMounts": [{
+              "mountPath": "/mnt/benchmark",
+              "name": "benchmark-pv"
+            }],
+            "env": [
+    {
+      "name": "BENCHMARK_DIR",
+      "value": "/mnt/benchmark/poc-embark-dl-benchmark"
+    },
+    {
+      "name": "PYTHONPATH",
+      "value": "/mnt/benchmark/poc-embark-dl-benchmark/src/aws-samples/aws-eks-deep-learning-benchmark/src:/mnt/benchmark/poc-embark-dl-benchmark/src/kubeflow/testing/py"
+    },
+    {
+      "name": "KUBECONFIG",
+      "value": "/mnt/benchmark/poc-embark-dl-benchmark/kubeconfig"
+    },
+    {
+      "name": "GITHUB_TOKEN",
+      "valueFrom": {
+        "secretKeyRef": {
+          "key": "GITHUB_TOKEN",
+          "name": "github-token"
+        }
+      }
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "valueFrom": {
+        "secretKeyRef": {
+          "key": "AWS_ACCESS_KEY_ID",
+          "name": "aws-secret"
+        }
+      }
+    },
+    {
+      "name": "AWS_SECRET_ACCESS_KEY",
+      "valueFrom": {
+        "secretKeyRef": {
+          "key": "AWS_SECRET_ACCESS_KEY",
+          "name": "aws-secret"
+        }
+      }
+    },
+    {
+      "name": "AWS_DEFAULT_REGION",
+      "value": "us-east-1"
+    }
+  ]
+          }
+        ],
+        "volumes": [{
+          "name":"benchmark-pv",
+          "persistentVolumeClaim":{
+            "claimName": "benchmark-pvc"
+          }
+        }]
+      }
+}
+' --image=seedjeffwan/benchmark-runner:20190424 --restart=Never -- bash
+
+Remove a temporary pod:
+kubect delete pod tmp
+
+Restart pod with possible overrides:
+kubectl get pod <pod_name> -n <namespace> -o yaml > tmp.yaml
+# edit tmp.yaml if you want
+kubectl replace --force -f tmp.yaml
+
+Get events only for a specific pod:
+kubectl get events --field-selector involvedObject.name="experiment-20190415-01-2595523456" 
+
+TODO: need to fix FSx for Lustre CSI driver https://github.com/kubernetes-sigs/aws-efs-csi-driver
+
+Fixes in the main job:
+Delete FSx volume (with dataset-claim)
+Change AWS region
+
+
+Logs from MPI worker (single GPU p3.2xlarge):
+
+  Step Epoch Speed   Loss  FinLoss   LR
+     0   0.0    34.1  6.693  8.031 0.10000
+     1   0.0   106.4  0.000  1.338 0.09801
+    50   0.0   807.6  0.000  1.343 0.02501
+Finished in 60.19895339012146
+
+
+
+Teardown
+eksctl delete cluster poc-embark-eks-dl-bench-bootstrap
